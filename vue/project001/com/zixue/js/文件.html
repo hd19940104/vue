@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta http-equiv="X-UA-Compatible" content="ie=edge">
+		<title>Document</title>
+		<script src="./lib/vue-2.4.0.js"></script>
+		<script src="./lib/vue-resource-1.3.4.js"></script>
+		<link rel="stylesheet" href="./lib/bootstrap-3.3.7.css">
+	</head>
+	<style>
+		.my-enter,
+    .my-leave-to {
+      opacity: 0;
+      transform: translateY(80px);
+    }
+
+    .my-enter-active,
+    .my-leave-active {
+      transition: all 0.6s ease;
+    }
+
+    /* 下面的 .v-move 和 .v-leave-active 配合使用，能够实现列表后续的元素，渐渐地漂上来的效果 */
+    .my-move {
+      transition: all 0.6s ease;
+    }
+    .my-leave-active{
+      position: absolute;
+    }
+  </style>
+	<body>
+		<div id="app">
+			<div class="panel panel-primary">
+				<div class="panel-heading">
+					<h3 class="panel-title">添加品牌</h3>
+				</div>
+				<div class="panel-body form-inline">
+
+					<label>
+						Name:
+						<input type="text" v-model="name" class="form-control">
+					</label>
+
+					<input type="button" value="添加" @click="add" class="btn btn-primary">
+					<label>
+						搜索名称关键字：
+						<!-- 注意： Vue中所有的指令，在调用的时候，都以 v- 开头 -->
+						<input type="text" class="form-control" v-model="keywords" id="search" v-focus v-color="'green'">
+					</label>
+				</div>
+			</div>
+
+			<table class="table table-bordered table-hover table-striped">
+				<thead>
+					<tr>
+						<th>Id</th>
+						<th>Name</th>
+						<th>Ctime</th>
+						<th>Operation</th>
+					</tr>
+				</thead>
+				<tbody is="transition-group" name="my" appear>
+					<tr v-for="item in  search(keywords)" :key="item.id">
+						<td>{{item.id}}</td>
+						<td>{{item.name}}</td>
+						<td>{{item.ctime}}</td>
+						<td>
+							<a href="" @click.prevent="del(item.id)">删除</a>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+
+
+		</div>
+
+		<script>
+			// 如果我们通过全局配置了，请求的数据接口 根域名，则 ，在每次单独发起 http 请求的时候，请求的 url 路径，应该以相对路径开头，前面不能带 /  ，否则 不会启用根路径做拼接；
+			Vue.http.options.root = 'http://lovexixi.natapp1.cc';
+			// 全局启用 emulateJSON 选项
+			Vue.http.options.emulateJSON = true;
+
+			Vue.directive("focus", {
+				bind: function(el) {},
+				inserted: function(el) {
+					el.focus()
+				},
+				updated: function(el) {}
+			})
+			Vue.directive("color", {
+				bind: function(el, binding) {
+
+					el.style.color = binding.value
+				}
+			})
+			// 创建 Vue 实例，得到 ViewModel
+			var vm = new Vue({
+				el: '#app',
+				data: {
+					keywords: '', // 搜索的关键字
+					name: '',
+					list: [ // 存放所有品牌列表的数组
+					]
+				},
+				created() { // 当 vm 实例 的 data 和 methods 初始化完毕后，vm实例会自动执行created 这个生命周期函数
+					this.getAllList()
+				},
+				methods: {
+					search(keywords) { // 根据关键字，进行数据的搜索
+						return this.list.filter(item => {
+							if (item.name.includes(keywords)) {
+								return item
+							}
+						})
+					},
+					getAllList() { // 获取所有的品牌列表
+
+						this.$http.get('api/getVueListAll').then(result => {
+							// 注意： 通过 $http 获取到的数据，都在 result.body 中放着
+							var result = result.body
+							console.log(result)
+							if (result != null) {
+								// 成功了
+								this.list = result
+							} else {
+								// 失败了
+								alert('获取数据失败！')
+							}
+						})
+					},
+					add() { // 添加品牌列表到后台服务器
+						if (this.name == '' || this.name == null) {
+							alert("添加信息不能为空");
+							return "";
+						}
+						this.$http.post('api/insertVueList', {
+							name: this.name
+						}).then(result => {
+							console.log(result)
+							if (result.status == 200) {
+								// 成功了！
+								// 添加完成后，只需要手动，再调用一下 getAllList 就能刷新品牌列表了
+								this.getAllList()
+								// 清空 name
+								this.name = ''
+							} else {
+								// 失败了
+								alert('添加失败！')
+							}
+						})
+					},
+					del(id) { // 删除品牌
+						this.$http.get('api/delVue?id=' + id).then(result => {
+							console.log(result)
+							if (result.status == 200) {
+								// 删除成功
+								this.getAllList()
+							} else {
+								alert('删除失败！')
+							}
+						})
+					}
+				}
+			});
+		</script>
+	</body>
+
+</html>
